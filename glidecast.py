@@ -468,6 +468,7 @@ class GlideCastApp(ctk.CTk):
                 [ADB_PATH, "devices"], 
                 capture_output=True, 
                 text=True, 
+                cwd=SCRCPY_DIR,
                 creationflags=subprocess.CREATE_NO_WINDOW
             )
             
@@ -582,6 +583,7 @@ class GlideCastApp(ctk.CTk):
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
+                cwd=SCRCPY_DIR,
                 creationflags=subprocess.CREATE_NO_WINDOW
             )
             
