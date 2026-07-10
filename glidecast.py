@@ -79,6 +79,7 @@ class GlideCastApp(ctk.CTk):
         # State variables
         self.devices = []
         self.mirror_process = None
+        self.demo_window = None
         self.downloading = False
         self.scanning = False
         
@@ -328,13 +329,36 @@ class GlideCastApp(ctk.CTk):
 
     def check_dependencies(self):
         self.log("[System] Checking ADB and scrcpy engines...")
+        
+        # Check if already installed in Local AppData
         if os.path.exists(ADB_PATH) and os.path.exists(SCRCPY_PATH):
             self.log("[System] Dependencies found! Engine is ready.")
             self.launch_btn.configure(state="normal")
             self.start_device_scan()
-        else:
-            self.log("[System] Dependencies missing!")
-            self.prompt_download()
+            return
+            
+        # If not, check if we have bundled binaries inside the app package
+        bundled_dir = resource_path(os.path.join("bin", f"scrcpy-win64-v{SCRCPY_VERSION}"))
+        if os.path.exists(bundled_dir):
+            self.log("[System] Initializing bundled engine binaries...")
+            try:
+                os.makedirs(BIN_DIR, exist_ok=True)
+                # Copy from bundle to Local AppData
+                shutil.copytree(bundled_dir, SCRCPY_DIR, dirs_exist_ok=True)
+                self.log("[System] Engine initialized successfully!")
+                self.launch_btn.configure(state="normal")
+                self.start_device_scan()
+            except Exception as e:
+                self.log(f"[Error] Failed to initialize bundled engine: {str(e)}")
+                messagebox.showerror(
+                    "Initialization Error",
+                    f"Failed to copy engine binaries to AppData:\n\n{str(e)}"
+                )
+            return
+
+        # Fallback to downloading from GitHub (for raw script developer runs)
+        self.log("[System] No local or bundled engine found. Starting download...")
+        self.prompt_download()
 
     def prompt_download(self):
         self.download_window = ctk.CTkToplevel(self)
@@ -472,26 +496,28 @@ class GlideCastApp(ctk.CTk):
         self.scan_btn.configure(state="normal", text="Scan")
         
         if not self.devices:
-            self.device_dropdown.configure(values=["No devices detected"])
+            self.device_dropdown.configure(values=["No devices detected", "Demo Simulation (virtual)"])
             self.device_dropdown.set("No devices detected")
             self.log("[ADB] No active devices found. Make sure USB Debugging is ON.")
         else:
             dropdown_values = []
             for serial, state in self.devices:
                 dropdown_values.append(f"{serial} ({state})")
-            
+            dropdown_values.append("Demo Simulation (virtual)")
             self.device_dropdown.configure(values=dropdown_values)
             self.device_dropdown.set(dropdown_values[0])
             self.log(f"[ADB] Found {len(self.devices)} device(s) connected.")
 
     def get_selected_device_serial(self):
         selected = self.device_dropdown.get()
+        if selected == "Demo Simulation (virtual)":
+            return "Demo_Simulation"
         if selected == "No devices detected" or not self.devices:
             return None
         return selected.split(" ")[0]
 
     def toggle_mirroring(self):
-        if self.mirror_process is not None:
+        if self.mirror_process is not None or (hasattr(self, "demo_window") and self.demo_window is not None):
             self.stop_mirroring()
         else:
             self.start_mirroring()
@@ -500,6 +526,10 @@ class GlideCastApp(ctk.CTk):
         serial = self.get_selected_device_serial()
         if not serial:
             self.log("[Error] Please select a valid device and scan again.")
+            return
+
+        if serial == "Demo_Simulation":
+            self.run_demo_simulation()
             return
 
         # Build scrcpy arguments
@@ -619,6 +649,153 @@ class GlideCastApp(ctk.CTk):
         if self.mirror_process:
             self.log("[Mirror] Stopping mirroring...")
             self.mirror_process.terminate()
+            
+        if hasattr(self, "demo_window") and self.demo_window is not None:
+            self.log("[Demo] Stopping simulation...")
+            try:
+                self.demo_window.destroy()
+            except:
+                pass
+            self.demo_window = None
+            self.reset_mirroring_state()
+
+    def run_demo_simulation(self):
+        self.log("[Demo] Initializing simulated device...")
+        
+        # Disable buttons while active
+        self.launch_btn.configure(text="STOP MIRRORING", fg_color="#ef4444", hover_color="#dc2626")
+        self.scan_btn.configure(state="disabled")
+        self.device_dropdown.configure(state="disabled")
+        
+        # Create the simulation window
+        self.demo_window = ctk.CTkToplevel(self)
+        window_title = "GlideCast: Demo_Simulation"
+        self.demo_window.title(window_title)
+        self.demo_window.geometry("380x680")
+        self.demo_window.resizable(False, False)
+        
+        # Keep lock ratio and bring to front initially
+        self.demo_window.attributes("-topmost", True)
+        self.demo_window.after(100, lambda: self.demo_window.attributes("-topmost", False))
+        
+        # Handle manual close
+        self.demo_window.protocol("WM_DELETE_WINDOW", self.stop_mirroring)
+        
+        # Draw demo content
+        header_frame = ctk.CTkFrame(self.demo_window, height=30, corner_radius=0, fg_color="#1e293b")
+        header_frame.pack(fill="x", side="top")
+        
+        time_label = ctk.CTkLabel(header_frame, text=time.strftime("%I:%M %p"), font=ctk.CTkFont(size=12, weight="bold"))
+        time_label.pack(side="left", padx=15)
+        
+        status_label = ctk.CTkLabel(header_frame, text="LTE  🔋 100%", font=ctk.CTkFont(size=11))
+        status_label.pack(side="right", padx=15)
+        
+        def update_clock():
+            if hasattr(self, "demo_window") and self.demo_window is not None:
+                try:
+                    time_label.configure(text=time.strftime("%I:%M %p"))
+                    self.demo_window.after(5000, update_clock)
+                except:
+                    pass
+        update_clock()
+        
+        # Interactive Canvas
+        self.demo_canvas = tk.Canvas(self.demo_window, bg="#0f172a", highlightthickness=0)
+        self.demo_canvas.pack(fill="both", expand=True)
+        
+        # Draw background text
+        self.demo_canvas.create_text(
+            190, 150, 
+            text="GLIDECAST", 
+            fill="#06b6d4", 
+            font=("Segoe UI", 24, "bold"),
+            justify="center"
+        )
+        self.demo_canvas.create_text(
+            190, 190, 
+            text="DEVICE SIMULATION ACTIVE", 
+            fill="#22d3ee", 
+            font=("Segoe UI", 12, "bold"),
+            justify="center"
+        )
+        
+        info_text = (
+            "This window simulates a connected phone screen.\n\n"
+            "• Click/drag on this screen to test Mouse input\n"
+            "• Type on your keyboard to test Keyboard input"
+        )
+        self.demo_canvas.create_text(
+            190, 260,
+            text=info_text,
+            fill="#94a3b8",
+            font=("Segoe UI", 11),
+            width=300,
+            justify="center"
+        )
+        
+        # Text variables on canvas
+        self.touch_text = self.demo_canvas.create_text(
+            190, 360,
+            text="Mouse: Click anywhere on this screen",
+            fill="#10b981",
+            font=("Consolas", 11),
+            width=300,
+            justify="center"
+        )
+        
+        self.key_text = self.demo_canvas.create_text(
+            190, 400,
+            text="Keyboard: Press any key",
+            fill="#f59e0b",
+            font=("Consolas", 11),
+            width=300,
+            justify="center"
+        )
+        
+        # Ripple effect for mouse clicks
+        def on_canvas_click(event):
+            try:
+                self.demo_canvas.itemconfig(self.touch_text, text=f"Mouse: Click at ({event.x}, {event.y})")
+                ripple = self.demo_canvas.create_oval(
+                    event.x - 5, event.y - 5, 
+                    event.x + 5, event.y + 5, 
+                    outline="#22d3ee", width=2
+                )
+                def animate_ripple(size=5):
+                    if hasattr(self, "demo_window") and self.demo_window is not None:
+                        try:
+                            self.demo_canvas.coords(
+                                ripple, 
+                                event.x - size, event.y - size, 
+                                event.x + size, event.y + size
+                            )
+                            if size < 25:
+                                self.demo_window.after(15, lambda: animate_ripple(size + 3))
+                            else:
+                                self.demo_canvas.delete(ripple)
+                        except:
+                            pass
+                animate_ripple()
+            except:
+                pass
+            
+        self.demo_canvas.bind("<Button-1>", on_canvas_click)
+        
+        # Key log handler
+        def on_key_press(event):
+            try:
+                key_name = event.keysym
+                self.demo_canvas.itemconfig(self.key_text, text=f"Keyboard: Key '{key_name}' pressed")
+            except:
+                pass
+            
+        self.demo_window.bind("<Key>", on_key_press)
+        
+        # Apply custom icon to the demo window
+        threading.Thread(target=self.apply_mirror_window_icon_thread, args=(window_title,), daemon=True).start()
+        
+        self.log("[Demo] Simulation window opened.")
 
     def reset_mirroring_state(self):
         self.mirror_process = None

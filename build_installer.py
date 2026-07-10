@@ -24,6 +24,7 @@ def build():
         "--onefile",
         f"--icon={icon_path}",
         f"--add-data={icon_path};.",
+        f"--add-data={os.path.join(app_dir, 'bin')};bin",
         "--name=GlideCast",
         "--collect-all=customtkinter",
         "--clean",
