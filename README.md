@@ -2,7 +2,7 @@ NOTE: This application utilizes Android Debug Bridge (ADB) to mirror and control
 
 GlideCast is a fast, lightweight, and high-performance desktop utility designed to mirror your Android screen directly to your Windows 10/11 PC. Stream video, forward device audio, and gain full control of your mobile apps using your computer's mouse and keyboard.
 
-Running 100% locally on your machine with no external accounts or cloud subscriptions required, GlideCast delivers a private, secure, and lag-free experience over a simple USB or local Wi-Fi connection.
+Running 100% locally on your machine with no external accounts or cloud subscriptions required, GlideCast delivers a private, secure, and lag-free experience over a simple USB connection.
 
 Key Features:
 • Real-time, low-latency screen mirroring at native resolutions.
