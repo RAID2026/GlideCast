@@ -10,8 +10,8 @@ The App does not collect, record, store, or transmit any personal data, personal
 ### 2. Local Processing
 All screen mirroring, audio forwarding, and device control processing are executed entirely locally on your Windows PC and your connected Android device over your USB cable or local Wi-Fi. No video, audio, or input data is ever transmitted to us or any third-party servers.
 
-### 3. Internet Access
-The App uses your internet connection solely on the first launch to download the necessary open-source engine dependencies (scrcpy and ADB) directly from their official repositories on GitHub. No analytics, tracking, or telemetry is gathered during this process.
+### 3. No Internet Access
+The App does not require, use, or establish any internet connection. All engine components are pre-packaged and run entirely locally. The App does not connect to external servers, collect telemetry, or transmit any data over the internet.
 
 ### 4. Compliance
 We fully comply with the Microsoft Store Developer policies regarding user privacy.
