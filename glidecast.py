@@ -44,10 +44,8 @@ def resource_path(relative_path):
         base_path = os.path.dirname(os.path.abspath(__file__))
     return os.path.join(base_path, relative_path)
 
-# Store downloaded binaries in the user's Local AppData directory 
-# to prevent PermissionErrors if the app is installed in C:\Program Files
-LOCAL_DATA_DIR = os.path.join(os.environ.get("LOCALAPPDATA", os.path.expanduser("~")), "GlideCast")
-BIN_DIR = os.path.join(LOCAL_DATA_DIR, "bin")
+# Store binaries directly inside the app package resources
+BIN_DIR = resource_path("bin")
 SCRCPY_DIR = os.path.join(BIN_DIR, f"scrcpy-win64-v{SCRCPY_VERSION}")
 ADB_PATH = os.path.join(SCRCPY_DIR, "adb.exe")
 SCRCPY_PATH = os.path.join(SCRCPY_DIR, "scrcpy.exe")
@@ -330,30 +328,11 @@ class GlideCastApp(ctk.CTk):
     def check_dependencies(self):
         self.log("[System] Checking ADB and scrcpy engines...")
         
-        # Check if already installed in Local AppData
+        # Check if binaries exist in the resources directory
         if os.path.exists(ADB_PATH) and os.path.exists(SCRCPY_PATH):
             self.log("[System] Dependencies found! Engine is ready.")
             self.launch_btn.configure(state="normal")
             self.start_device_scan()
-            return
-            
-        # If not, check if we have bundled binaries inside the app package
-        bundled_dir = resource_path(os.path.join("bin", f"scrcpy-win64-v{SCRCPY_VERSION}"))
-        if os.path.exists(bundled_dir):
-            self.log("[System] Initializing bundled engine binaries...")
-            try:
-                os.makedirs(BIN_DIR, exist_ok=True)
-                # Copy from bundle to Local AppData
-                shutil.copytree(bundled_dir, SCRCPY_DIR, dirs_exist_ok=True)
-                self.log("[System] Engine initialized successfully!")
-                self.launch_btn.configure(state="normal")
-                self.start_device_scan()
-            except Exception as e:
-                self.log(f"[Error] Failed to initialize bundled engine: {str(e)}")
-                messagebox.showerror(
-                    "Initialization Error",
-                    f"Failed to copy engine binaries to AppData:\n\n{str(e)}"
-                )
             return
 
         # Fallback to downloading from GitHub (for raw script developer runs)
